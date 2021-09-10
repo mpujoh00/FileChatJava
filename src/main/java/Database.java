@@ -1,9 +1,7 @@
 
-import Objects.FileMessage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -17,9 +15,9 @@ import java.util.logging.Logger;
 
 public class Database {
     
-    private final String url = "jdbc:mysql://remotemysql.com:3306/dq2fDwEP6r";
-    private final String user = "dq2fDwEP6r";
-    private final String password = "eCSdwdyUFv";
+    private final String url = "jdbc:mysql://localhost:3306/file_chat";
+    private final String user = "root";
+    private final String password = "";
     private Connection connection; 
     private PreparedStatement statement;
     
@@ -43,7 +41,7 @@ public class Database {
             statement = connection.prepareStatement("INSERT INTO Files (to_id, from_id, file, file_name) VALUES (?,?,?,?)");
             statement.setInt(1, toId);
             statement.setInt(2, fromId);
-            File file = new File(filename);
+            File file = new File("./files/" + filename);
             FileInputStream fis = new FileInputStream(file);
             statement.setBinaryStream(3, fis);
             statement.setString(4, filename);

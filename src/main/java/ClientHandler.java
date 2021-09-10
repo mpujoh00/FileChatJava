@@ -12,7 +12,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -20,9 +19,9 @@ import java.util.logging.Logger;
 
 public class ClientHandler extends Thread{
 
-    private Socket socket;
-    private String address;
-    private Database database;
+    private final Socket socket;
+    private final String address;
+    private final Database database;
     private OutputStream os;
     private User currentUser;
     private InputStream is;
@@ -30,6 +29,7 @@ public class ClientHandler extends Thread{
     private PrintWriter out;
     private DataInputStream din;
     private DataOutputStream dos;
+    private String client;
     
     public ClientHandler(Socket socket, Database database) {
         
@@ -37,6 +37,11 @@ public class ClientHandler extends Thread{
         System.out.println("Connection established with client: " + this.address);
         this.socket = socket;
         this.database = database;
+    }
+    
+    @Override
+    public void run() {
+        
         try {
             is = this.socket.getInputStream();
             in = new BufferedReader(new InputStreamReader(is));
@@ -44,89 +49,93 @@ public class ClientHandler extends Thread{
             din = new DataInputStream(is);
             dos = new DataOutputStream(socket.getOutputStream());
             
-            execute();
+            // indicates what server it is
+            sendMessage("java");
+            
+            // gets what client it is
+            this.client = in.readLine();
+            
+            // login or registration
+            System.out.println(" - Asking to login or register");
+            boolean run = true;
+            boolean quit = false;
+            
+            while(run){
+                sendMessage("What do you want to do?\n\ta. Login\n\tb. Register\n\tc.Quit\nChoice:");
+                String choice = in.readLine();
+                
+                if(choice.equals("a")){
+                    // login
+                    System.out.println(" - Requesting login data");
+                    this.currentUser = login();
+                    if(this.currentUser != null){
+                        run = false;
+                    }
+                }
+                else if(choice.equals("b")){
+                    // register
+                    System.out.println(" - Registering new user");
+                    this.currentUser = register();
+                    if(this.currentUser != null){
+                        run = false;
+                    }
+                }
+                else if(choice.equals("c")){
+                    // quit
+                    System.out.println(" - Disconnecting client " + this.address + " from the server");
+                    sendMessage("Goodbye!");
+                    run = false;
+                    quit = true;
+                }
+                else{
+                    System.out.println(" - Incorrect choice, trying again");
+                    sendMessage("Incorrect choice, try again\n");
+                }
+            }
+            
+            // main menu
+            while(!quit){
+                System.out.println(" - Displaying menu");
+                sendMessage("What do you want to do?\n\ta. Check user's state\n\tb. Send file\n\tc. Refresh received files"
+                        + "\n\td. Change file extensions\n\te. Quit\nChoice:");
+                String choice = in.readLine();
+                
+                switch (choice) {
+                    case "a":
+                        // checks another user's state
+                        System.out.println(" - Checking user's state");
+                        checkState();
+                        break;
+                    case "b":
+                        // sends a file to the specified user
+                        System.out.println(" - Sending a file");
+                        openSendFile();
+                        break;
+                    case "c":
+                        // checks if the user has received any new files
+                        System.out.println(" - Checking for new received files");
+                        receivedFiles();
+                        break;
+                    case "d":
+                        // changes its accepted file extensions
+                        System.out.println(" - Changing accepted file extensions");
+                        changeExtensions();
+                        break;
+                    case "e":
+                        // quits app
+                        System.out.println(" - Disconnecting client '" + this.currentUser.getUsername() + "' from the server");
+                        sendMessage("Goodbye!");
+                        this.database.disconnectUser(this.currentUser.getUsername());
+                        quit = true;
+                        break;
+                    default:
+                        System.out.println(" - Trying to choose a menu option again");
+                        sendMessage("Incorrect option, try again\n");
+                        break;
+                }
+            }
         } catch (IOException ex) {
             Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    public void execute() throws IOException {
-        // login or registration
-        System.out.println(" - Asking to login or register");
-        boolean run = true;
-        boolean quit = false;
-        
-        while(run){
-            sendMessage("What do you want to do?\n\ta. Login\n\tb. Register\n\tc.Quit\nChoice:");
-            String choice = in.readLine();
-            
-            if(choice.equals("a")){
-                // login
-                System.out.println(" - Requesting login data");
-                this.currentUser = login();
-                if(this.currentUser != null){
-                    run = false;
-                }
-            }
-            else if(choice.equals("b")){
-                // register
-                System.out.println(" - Registering new user");
-                this.currentUser = register();
-                if(this.currentUser != null){
-                    run = false;
-                }
-            }
-            else if(choice.equals("c")){
-                // quit
-                System.out.println(" - Disconnecting client " + this.address + " from the server");
-                sendMessage("Goodbye!");
-                run = false;
-                quit = true;
-            }
-            else{
-                System.out.println(" - Incorrect choice, trying again");
-                sendMessage("Incorrect choice, try again\n");
-            }
-        }
-        
-        // main menu
-        while(!quit){
-            System.out.println(" - Displaying menu");
-            sendMessage("What do you want to do?\n\ta. Check user's state\n\tb. Send file\n\tc. Refresh received files"
-                    + "\n\td. Change file extensions\n\te. Quit\nChoice:");
-            String choice = in.readLine();
-            
-            if(choice.equals("a")){
-                // checks another user's state
-                System.out.println(" - Checking user's state");
-                checkState();
-            }
-            else if(choice.equals("b")){
-                // sends a file to the specified user
-                System.out.println(" - Sending a file");
-                openSendFile();
-            }
-            else if(choice.equals("c")){
-                // checks if the user has received any new files
-                System.out.println(" - Checking for new received files");
-                receivedFiles();
-            }
-            else if(choice.equals("d")){
-                // changes its accepted file extensions
-                System.out.println(" - Changing accepted file extensions");
-                changeExtensions();
-            }
-            else if(choice.equals("e")){
-                // quits app
-                System.out.println(" - Disconnecting client '" + this.currentUser.getUsername() + "' from the server");
-                sendMessage("Goodbye!");
-                this.database.disconnectUser(this.currentUser.getUsername());
-                quit = true;
-            }
-            else{
-                System.out.println(" - Trying to choose a menu option again");
-                sendMessage("Incorrect option, try again\n");
-            }
         }
     }
     
@@ -152,7 +161,7 @@ public class ClientHandler extends Thread{
             // same current user
             else if(friendUsername.equals(this.currentUser.getUsername())){
                 System.out.println(" - Same user");
-                sendMessage("You can't open a chat with yourself, try again\n");
+                sendMessage("You can't send a file to yourself, try again\n");
             }
             // friend is disconnected
             else if(!friend.isAvailable()){
@@ -212,9 +221,11 @@ public class ClientHandler extends Thread{
                         int counter = 0;
                         byte[] buffer = new byte[8192];
 
-                        while(totalBytesRead != fileSize){
+                        while(totalBytesRead < fileSize){
                             // reception confirmation message
-                            sendMessage("ok");
+                            if(this.client.equals("python")){
+                                sendMessage("ok");
+                            }
                             // reads bytes
                             counter = din.read(buffer, 0, buffer.length);
                             // writes file
@@ -223,10 +234,7 @@ public class ClientHandler extends Thread{
                         }
                         fos.flush();
                         fos.close();
-                        
-                        // sends confirmation message
-                        sendMessage("ok");
-                        
+                                                
                         // saves file to database
                         System.out.println(" - Uploading file to database");
                         this.database.uploadFile(friend.getId(), this.currentUser.getId(), filename);
@@ -235,9 +243,50 @@ public class ClientHandler extends Thread{
                     }  
                     break;
                 }
+                break;
             }
             
         }
+    }
+    
+    public void readFilePython(FileOutputStream fos, int fileSize) throws IOException{
+     
+        // writes file data
+        int totalBytesRead = 0;
+        int counter = 0;
+        byte[] buffer = new byte[8192];
+
+        while(totalBytesRead != fileSize){
+            // reception confirmation message
+            if(this.client.equals("python")){
+                sendMessage("ok");
+            }
+            // reads bytes
+            counter = din.read(buffer, 0, buffer.length);
+            // writes file
+            fos.write(buffer, 0, counter);
+            totalBytesRead += counter;
+        }
+        fos.flush();
+        fos.close();
+    }
+    
+    public void readFileJava(FileOutputStream fos, int fileSize) throws IOException{
+        
+        // writes file data
+        int totalBytesRead = 0;
+        int counter = 0;
+        byte[] buffer = new byte[8192];
+
+        while(totalBytesRead < fileSize){
+            // reads bytes
+            counter = din.read(buffer, 0, buffer.length);
+            // writes file
+            fos.write(buffer, 0, counter);
+            totalBytesRead += counter;
+        }
+        fos.flush();
+        fos.close();
     }
     
     public void receivedFiles() throws IOException{
@@ -268,6 +317,7 @@ public class ClientHandler extends Thread{
         
     }
         
+    // sends file to user
     public void sendFile(String filename) throws FileNotFoundException, IOException{
         // sends file to socket
         System.out.println(" - Sending new file to user");
@@ -278,16 +328,19 @@ public class ClientHandler extends Thread{
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         
         int nBytesRead;
-        byte[] data = new byte[1024];
+        byte[] data = new byte[8192];
         while((nBytesRead = fis.read(data, 0, data.length)) != -1){
             buffer.write(data, 0, nBytesRead);
         }                                
         buffer.flush();
         byte[] byteArray = buffer.toByteArray();
-
-        // sends byte array lenght
-        dos.writeInt(byteArray.length);
-
+    
+        // sends file size (byte array lenght)
+        sendMessage(Integer.toString(byteArray.length));
+         
+        // waits for confirmation message
+        in.readLine();
+        
         // sends file
         dos.write(byteArray);
         dos.flush();
@@ -307,7 +360,6 @@ public class ClientHandler extends Thread{
             if(newExtensions.equals("q")){
                 return;
             }
-            
             // checks if they are correct
             String temp[] = {"jpg", "png", "txt", "pdf"};
             List<String> availableExtensions = Arrays.asList(temp);
@@ -326,7 +378,6 @@ public class ClientHandler extends Thread{
             if(incorrect){
                 continue;
             }
-            
             // correct extensions, updates user
             this.database.updateUserExtensions(this.currentUser.getId(), newExtensions);
             this.currentUser.setExtensions(newExtensions);
@@ -444,8 +495,8 @@ public class ClientHandler extends Thread{
     }
     
     public void sendMessage(String message){
-        out.print(message);
+        //out.print(message);
+        out.println(message);
         out.flush();
     }
-    
 }

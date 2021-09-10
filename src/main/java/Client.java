@@ -1,5 +1,3 @@
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -10,13 +8,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.Scanner;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileSystemView;
@@ -39,15 +33,20 @@ public class Client {
         int port = 2021;
         try {
             Socket socket = new Socket(host, port);
-            System.out.println("Java client connecting to Python server of ip: " + host + " port: " + port);
-             
-            
+            System.out.println("Java client connecting to server of ip: " + host + " port: " + port);
+                        
             is = socket.getInputStream();
             in = new BufferedReader(new InputStreamReader(is));
             out = new PrintWriter(socket.getOutputStream(), true);
             din = new DataInputStream(is);
             dos = new DataOutputStream(socket.getOutputStream());
+             
+            // gets what server it is
+            String server = in.readLine();
             
+            // indicates what client it is
+            sendMessage("java");
+                    
             System.out.println("Waiting for messages");
             Scanner sc = new Scanner(System.in);
             String receivedMessage;
@@ -64,15 +63,13 @@ public class Client {
                         File chosenFile = fileChooser.getSelectedFile();
                         
                         // sends file size (only allowed up to 64 kb)
-                        out.print(Long.toString(chosenFile.length()));
-                        out.flush();
+                        sendMessage(Long.toString(chosenFile.length()));
                         String validSize = in.readLine();
                         
                         // waits to know if the file size is allowed
                         if(validSize.equals("ok")){
                             // sends file name
-                            out.print(chosenFile.getName());
-                            out.flush();
+                            sendMessage(chosenFile.getName());
 
                             // waits to know if the file extension is accepted
                             String validExtension = in.readLine();
@@ -89,15 +86,11 @@ public class Client {
                                 buffer.flush();
                                 byte[] byteArray = buffer.toByteArray();
 
-                                // sends byte array lenght
-                                dos.writeInt(byteArray.length);
-
                                 // sends file
                                 dos.write(byteArray);
                                 dos.flush();
                                 fis.close();
-                            }
-                            else{
+                            }else{
                                 System.out.println(" - " + validExtension);
                             }
                         }else{
@@ -105,8 +98,7 @@ public class Client {
                         }
                     }
                     else{
-                        out.print("q");
-                        out.flush();
+                        sendMessage("q");
                     }
                 }
                 // files received
@@ -127,16 +119,20 @@ public class Client {
                     
                     // gets file size
                     int fileSize = Integer.parseInt(in.readLine());
+                    
+                    // sends confirmation message
+                    sendMessage("ok");
                                         
                     // writes file data
                     int totalBytesRead = 0;
                     int counter = 0;
                     byte[] buffer = new byte[8192];
                     
-                    while(totalBytesRead != fileSize){
+                    while(totalBytesRead < fileSize){
                         // reception confirmation message
-                        out.print("ok");
-                        out.flush();
+                        if(server.equals("python")){
+                            sendMessage("ok");
+                        }
                         // reads bytes
                         counter = din.read(buffer, 0, buffer.length);
                         // writes file
@@ -147,8 +143,7 @@ public class Client {
                     fos.close();
                     
                     // sends confirmation message
-                    out.print("ok");
-                    out.flush();
+                    sendMessage("ok");
                 } 
                 else if(receivedMessage.equals("Goodbye!")){
                     System.out.println(" - " + receivedMessage);
@@ -163,8 +158,7 @@ public class Client {
                 }                
                 // answers to the message when it is expected
                 if(receivedMessage.endsWith(":")){
-                    out.print(sc.nextLine());
-                    out.flush();
+                    sendMessage(sc.nextLine());
                 }                
             }                        
         } catch (UnknownHostException e) {
@@ -172,6 +166,57 @@ public class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+    
+    // sends a file to python server
+    public static void sendFilePython(File file) throws IOException{
+        
+        // gets byte array from file
+        FileInputStream fis = new FileInputStream(file);
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int nBytesRead;
+        byte[] data = new byte[1024];
+        while((nBytesRead = fis.read(data, 0, data.length)) != -1){
+            buffer.write(data, 0, nBytesRead);
+        }                                
+        buffer.flush();
+        byte[] byteArray = buffer.toByteArray();
+
+        // sends byte array lenght
+        dos.writeInt(byteArray.length);
+
+        // sends file
+        dos.write(byteArray);
+        dos.flush();
+        fis.close();
+    }
+    
+    // sends a file to java server
+    public static void sendFileJava(File file) throws IOException{
+        
+        // gets byte array from file
+        FileInputStream fis = new FileInputStream(file);
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int nBytesRead;
+        byte[] data = new byte[1024];
+        while((nBytesRead = fis.read(data, 0, data.length)) != -1){
+            buffer.write(data, 0, nBytesRead);
+        }                                
+        buffer.flush();
+        byte[] byteArray = buffer.toByteArray();
+
+        // sends byte array lenght
+        dos.writeInt(byteArray.length);
+
+        // sends file
+        dos.write(byteArray);
+        dos.flush();
+        fis.close();
+    }
+    
+    public static void sendMessage(String message){
+        out.println(message);
+        out.flush();
     }
     
     public static void closeConnection() throws IOException{

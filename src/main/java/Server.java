@@ -1,6 +1,7 @@
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.logging.Level;
@@ -32,7 +33,9 @@ public class Server {
         // waits for clients to request connection to the server
         while(true){
             System.out.println("Waiting for a client connection request");
-            new ClientHandler(serverSocket.accept(), database).start();
+            Socket socket = serverSocket.accept();
+            ClientHandler client = new ClientHandler(socket, database);
+            client.start();
         }
     }
     
