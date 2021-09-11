@@ -38,13 +38,18 @@ public class Client {
     private static final int JAVA_PORT = 2021;
 
 
-    public static void main(String[] args) throws ServerConnectionException, IOException {
+    public static void main(String[] args) throws IOException, ServerConnectionException {
 
         // tries to connect to server
         try {
             socket = connectToServer(JAVA_HOST, JAVA_PORT);
         } catch (ServerConnectionException e) {
-            socket = connectToServer(PYTHON_HOST, PYTHON_PORT);
+            try{
+                socket = connectToServer(PYTHON_HOST, PYTHON_PORT);
+            } catch(ServerConnectionException ex){
+                System.out.println("\nThere isn't any available server\n");
+                return;
+            }            
         }
 
         initializeStreams();
@@ -58,7 +63,7 @@ public class Client {
         try {
             readMessages();
         } catch (ServerConnectionException e){
-            System.out.println("fallaron los dos");
+            System.out.println("\nThere isn't any available server\n");
         }
     }
 
@@ -99,12 +104,12 @@ public class Client {
                 receivedMessage = readMessage();
                 
             } catch (ServerConnectionException e) {
-                System.out.println("Falló la conexión, probando con otro cliente");
+                System.out.println("Server failed, trying with another");
                 if(server.equals("java")) {
-                    System.out.println("Conectandose al cliente de Python");
+                    System.out.println("Connecting to Python server");
                     socket = connectToServer(PYTHON_HOST, PYTHON_PORT);
                 } else {
-                    System.out.println("Conectandose al cliente de Java");
+                    System.out.println("Connecting to Java server");
                     socket = connectToServer(JAVA_HOST, JAVA_PORT);
                 }
                 try {
@@ -220,58 +225,11 @@ public class Client {
         }
     }
     
-    // sends a file to python server
-    private static void sendFilePython(File file) throws IOException{
-        
-        // gets byte array from file
-        FileInputStream fis = new FileInputStream(file);
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int nBytesRead;
-        byte[] data = new byte[1024];
-        while((nBytesRead = fis.read(data, 0, data.length)) != -1){
-            buffer.write(data, 0, nBytesRead);
-        }                                
-        buffer.flush();
-        byte[] byteArray = buffer.toByteArray();
-
-        // sends byte array lenght
-        dos.writeInt(byteArray.length);
-
-        // sends file
-        dos.write(byteArray);
-        dos.flush();
-        fis.close();
-    }
-    
-    // sends a file to java server
-    private static void sendFileJava(File file) throws IOException{
-        
-        // gets byte array from file
-        FileInputStream fis = new FileInputStream(file);
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int nBytesRead;
-        byte[] data = new byte[1024];
-        while((nBytesRead = fis.read(data, 0, data.length)) != -1){
-            buffer.write(data, 0, nBytesRead);
-        }                                
-        buffer.flush();
-        byte[] byteArray = buffer.toByteArray();
-
-        // sends byte array lenght
-        dos.writeInt(byteArray.length);
-
-        // sends file
-        dos.write(byteArray);
-        dos.flush();
-        fis.close();
-    }
-
     private static String readMessage() throws ServerConnectionException {
         try {
             return in.readLine();
         } catch (Exception e){
-            System.out.println("Servidor falló a la hora de leer el mensaje: " + e.toString());
-            throw new ServerConnectionException("Servidor falló, intentando conectar con el servidor de Python", e);
+            throw new ServerConnectionException("", e);
         }
     }
     
@@ -285,6 +243,7 @@ public class Client {
             System.out.println("Java client connecting to server of ip: " + host + " port: " + port);
             return new Socket(host, port);
         } catch (Exception e) {
+            System.out.println("Couldn't connect to the server");
             throw new ServerConnectionException("", e);
         }
     }

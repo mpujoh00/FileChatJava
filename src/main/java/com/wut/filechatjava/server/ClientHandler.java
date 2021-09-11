@@ -1,6 +1,7 @@
 package com.wut.filechatjava.server;
 
 import com.wut.filechatjava.database.Database;
+import com.wut.filechatjava.exception.ServerConnectionException;
 import com.wut.filechatjava.model.Files;
 import com.wut.filechatjava.model.User;
 import java.io.BufferedReader;
@@ -12,11 +13,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -27,9 +27,7 @@ public class ClientHandler extends Thread{
     private final Socket socket;
     private final String address;
     private final Database database;
-    private OutputStream os;
     private User currentUser;
-    private InputStream is;
     private BufferedReader in;
     private PrintWriter out;
     private DataInputStream din;
@@ -48,109 +46,141 @@ public class ClientHandler extends Thread{
     public void run() {
         
         try {
-            is = this.socket.getInputStream();
-            in = new BufferedReader(new InputStreamReader(is));
-            out = new PrintWriter(socket.getOutputStream(), true);
-            din = new DataInputStream(is);
-            dos = new DataOutputStream(socket.getOutputStream());
-            
-            // indicates what server it is
-            sendMessage("java");
-            
+            initializeStreams();
+        } catch (IOException ex) {
+            Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        // indicates what server it is
+        sendMessage("java");
+        try {
             // gets what client it is
-            this.client = in.readLine();
+            this.client = readMessage();
             
-            // login or registration
-            System.out.println(" - Asking to login or register");
-            boolean run = true;
-            boolean quit = false;
+        } catch (SocketException ex) {
+            // client fail
+            System.out.println("Client: " + this.address + " unexpectedly disconnected");
+            return;
+        }
+        
+        // login or registration
+        System.out.println(" - Asking to login or register");
+        boolean quit = true;
+        try {
+            quit = showLoginMenu();
             
-            while(run){
-                sendMessage("What do you want to do?\n\ta. Login\n\tb. Register\n\tc.Quit\nChoice:");
-                String choice = in.readLine();
-                
-                if(choice.equals("a")){
-                    // login
-                    System.out.println(" - Requesting login data");
-                    this.currentUser = login();
-                    if(this.currentUser != null){
-                        run = false;
-                    }
-                }
-                else if(choice.equals("b")){
-                    // register
-                    System.out.println(" - Registering new user");
-                    this.currentUser = register();
-                    if(this.currentUser != null){
-                        run = false;
-                    }
-                }
-                else if(choice.equals("c")){
-                    // quit
-                    System.out.println(" - Disconnecting client " + this.address + " from the server");
-                    sendMessage("Goodbye!");
-                    run = false;
-                    quit = true;
-                }
-                else{
-                    System.out.println(" - Incorrect choice, trying again");
-                    sendMessage("Incorrect choice, try again\n");
-                }
-            }
+        } catch (SocketException ex) {
+            // client fail
+            System.out.println("Client: " + this.address + " unexpectedly disconnected");
             
+        } catch (IOException ex) {
+            Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        try {
             // main menu
-            while(!quit){
-                System.out.println(" - Displaying menu");
-                sendMessage("What do you want to do?\n\ta. Check user's state\n\tb. Send file\n\tc. Refresh received files"
-                        + "\n\td. Change file extensions\n\te. Quit\nChoice:");
-                String choice = in.readLine();
-                
-                switch (choice) {
-                    case "a":
-                        // checks another user's state
-                        System.out.println(" - Checking user's state");
-                        checkState();
-                        break;
-                    case "b":
-                        // sends a file to the specified user
-                        System.out.println(" - Sending a file");
-                        openSendFile();
-                        break;
-                    case "c":
-                        // checks if the user has received any new files
-                        System.out.println(" - Checking for new received files");
-                        receivedFiles();
-                        break;
-                    case "d":
-                        // changes its accepted file extensions
-                        System.out.println(" - Changing accepted file extensions");
-                        changeExtensions();
-                        break;
-                    case "e":
-                        // quits app
-                        System.out.println(" - Disconnecting client '" + this.currentUser.getUsername() + "' from the server");
-                        sendMessage("Goodbye!");
-                        this.database.disconnectUser(this.currentUser.getUsername());
-                        quit = true;
-                        break;
-                    default:
-                        System.out.println(" - Trying to choose a menu option again");
-                        sendMessage("Incorrect option, try again\n");
-                        break;
-                }
-            }
+            showMenu(quit);
+        } catch (SocketException ex) {
+            // client fail
+            System.out.println("Client: " + this.address + " unexpectedly disconnected");
+            // disconnects user
+            this.database.disconnectUser(this.currentUser.getUsername());
+            
         } catch (IOException ex) {
             Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
-    public void openSendFile() throws IOException{
+    private boolean showLoginMenu() throws SocketException, IOException{
+        
+        boolean run = true;
+        boolean quit = false;
+        while(run){
+            sendMessage("What do you want to do?\n\ta. Login\n\tb. Register\n\tc.Quit\nChoice:");
+            String choice = readMessage();
+
+            if(choice.equals("a")){
+                // login
+                System.out.println(" - Requesting login data");
+                this.currentUser = login();
+                if(this.currentUser != null){
+                    run = false;
+                }
+            }
+            else if(choice.equals("b")){
+                // register
+                System.out.println(" - Registering new user");
+                this.currentUser = register();
+                if(this.currentUser != null){
+                    run = false;
+                }
+            }
+            else if(choice.equals("c")){
+                // quit
+                System.out.println(" - Disconnecting client " + this.address + " from the server");
+                sendMessage("Goodbye!");
+                run = false;
+                quit = true;
+            }
+            else{
+                System.out.println(" - Incorrect choice, trying again");
+                sendMessage("Incorrect choice, try again\n");
+            }
+        }
+        return quit;
+    }
+    
+    private void showMenu(boolean quit) throws IOException, SocketException{
+        
+        while(!quit){
+            System.out.println(" - Displaying menu");
+            sendMessage("What do you want to do?\n\ta. Check user's state\n\tb. Send file\n\tc. Refresh received files"
+                    + "\n\td. Change file extensions\n\te. Quit\nChoice:");
+            String choice = readMessage();
+
+            switch (choice) {
+                case "a":
+                    // checks another user's state
+                    System.out.println(" - Checking user's state");
+                    checkState();
+                    break;
+                case "b":
+                    // sends a file to the specified user
+                    System.out.println(" - Sending a file");
+                    openSendFile();
+                    break;
+                case "c":
+                    // checks if the user has received any new files
+                    System.out.println(" - Checking for new received files");
+                    receivedFiles();
+                    break;
+                case "d":
+                    // changes its accepted file extensions
+                    System.out.println(" - Changing accepted file extensions");
+                    changeExtensions();
+                    break;
+                case "e":
+                    // quits app
+                    System.out.println(" - Disconnecting client '" + this.currentUser.getUsername() + "' from the server");
+                    sendMessage("Goodbye!");
+                    this.database.disconnectUser(this.currentUser.getUsername());
+                    quit = true;
+                    break;
+                default:
+                    System.out.println(" - Trying to choose a menu option again");
+                    sendMessage("Incorrect option, try again\n");
+                    break;
+            }
+        }
+    }
+    
+    private void openSendFile() throws IOException, SocketException{
         
         while(true){
             // asks for friend
             System.out.println(" - Asking for username");
             sendMessage("To whom do you want to send the file? (q)\nUsername:");
-            String friendUsername = in.readLine();
+            String friendUsername = readMessage();
             if(friendUsername.equals("q")){
                 return;
             }
@@ -182,7 +212,7 @@ public class ClientHandler extends Thread{
                     sendMessage("What file do you want to send?");
                     
                     // gets file size
-                    int fileSize = Integer.parseInt(in.readLine());
+                    int fileSize = Integer.parseInt(readMessage());
                     // file size not allowed (too big)
                     if(fileSize > 65536){
                         sendMessage("File too big (only allowed up to 64kb), try again\n");
@@ -194,7 +224,7 @@ public class ClientHandler extends Thread{
                     }
                     
                     // gets filename
-                    String filename = in.readLine();
+                    String filename = readMessage();
                     // checks if the user chose a file
                     if(filename.equals("q")){
                         continue;
@@ -253,48 +283,8 @@ public class ClientHandler extends Thread{
             
         }
     }
-    
-    public void readFilePython(FileOutputStream fos, int fileSize) throws IOException{
-     
-        // writes file data
-        int totalBytesRead = 0;
-        int counter = 0;
-        byte[] buffer = new byte[8192];
-
-        while(totalBytesRead != fileSize){
-            // reception confirmation message
-            if(this.client.equals("python")){
-                sendMessage("ok");
-            }
-            // reads bytes
-            counter = din.read(buffer, 0, buffer.length);
-            // writes file
-            fos.write(buffer, 0, counter);
-            totalBytesRead += counter;
-        }
-        fos.flush();
-        fos.close();
-    }
-    
-    public void readFileJava(FileOutputStream fos, int fileSize) throws IOException{
         
-        // writes file data
-        int totalBytesRead = 0;
-        int counter = 0;
-        byte[] buffer = new byte[8192];
-
-        while(totalBytesRead < fileSize){
-            // reads bytes
-            counter = din.read(buffer, 0, buffer.length);
-            // writes file
-            fos.write(buffer, 0, counter);
-            totalBytesRead += counter;
-        }
-        fos.flush();
-        fos.close();
-    }
-    
-    public void receivedFiles() throws IOException{
+    private void receivedFiles() throws IOException, SocketException{
         
         System.out.println(" - Checking if any file has been received");
         List<Files> files = this.database.getFiles(currentUser.getId());
@@ -313,7 +303,7 @@ public class ClientHandler extends Thread{
                 sendMessage("You have received a new file from '" + friend.getUsername() + "': " + file.getFilename());
                 sendFile(file.getFilename());
                 // waits for confirmation message
-                in.readLine();
+                readMessage();
                 System.out.println(" - File received by user");
             }
             sendMessage("");
@@ -323,7 +313,7 @@ public class ClientHandler extends Thread{
     }
         
     // sends file to user
-    public void sendFile(String filename) throws FileNotFoundException, IOException{
+    private void sendFile(String filename) throws FileNotFoundException, IOException, SocketException{
         // sends file to socket
         System.out.println(" - Sending new file to user");
         
@@ -344,7 +334,7 @@ public class ClientHandler extends Thread{
         sendMessage(Integer.toString(byteArray.length));
          
         // waits for confirmation message
-        in.readLine();
+        readMessage();
         
         // sends file
         dos.write(byteArray);
@@ -352,7 +342,7 @@ public class ClientHandler extends Thread{
         fis.close();        
     }
     
-    public void changeExtensions() throws IOException{
+    private void changeExtensions() throws IOException, SocketException{
         
         String currentExtensions = this.currentUser.getExtensions();
         
@@ -361,7 +351,7 @@ public class ClientHandler extends Thread{
             // asks for new extensions
             sendMessage("Your current accepted extensions are: " + currentExtensions +
                         "\nIntroduce the new ones from the list [jpg,png,txt,pdf] (separated by commas) (q):");
-            String newExtensions = in.readLine();
+            String newExtensions = readMessage();
             if(newExtensions.equals("q")){
                 return;
             }
@@ -392,11 +382,11 @@ public class ClientHandler extends Thread{
         }
     }
     
-    public void checkState() throws IOException{
+    private void checkState() throws IOException, SocketException{
         
         // asks for the other user's username
         sendMessage("Who do you want to know about? (q)\nUsername:");
-        String username = in.readLine();
+        String username = readMessage();
         if(username.equals("q")){
             return;
         }
@@ -419,19 +409,19 @@ public class ClientHandler extends Thread{
         
     }
     
-    public User login() throws IOException{
+    private User login() throws IOException, SocketException{
         
         while(true){
             // asks for username
             sendMessage("Introduce your username (q):");
-            String username = in.readLine();
+            String username = readMessage();
             if(username.equals("q")){
                 return null;
             }
             System.out.println("Username: " + username);
             // asks for password
             sendMessage("Introduce your password (q):");
-            String password = in.readLine();
+            String password = readMessage();
             if(password.equals("q")){
                 return null;
             }
@@ -464,19 +454,19 @@ public class ClientHandler extends Thread{
         }
     }
     
-    public User register() throws IOException{
+    private User register() throws IOException, SocketException{
         
         while(true){
             // asks for username
             sendMessage("Introduce your username (q):");
-            String username = in.readLine();
+            String username = readMessage();
             if(username.equals("q")){
                 return null;
             }
             System.out.println("Username: " + username);
             // asks for password
             sendMessage("Introduce your password (q):");
-            String password = in.readLine();
+            String password = readMessage();
             if(password.equals("q")){
                 return null;
             }
@@ -499,9 +489,23 @@ public class ClientHandler extends Thread{
         }
     }
     
-    public void sendMessage(String message){
-        //out.print(message);
+    private String readMessage() throws SocketException{
+        try {
+            return in.readLine();
+        } catch (IOException ex) {
+            throw new SocketException();
+        }
+    }
+    
+    private void sendMessage(String message){
         out.println(message);
         out.flush();
+    }
+    
+    private void initializeStreams() throws IOException{
+        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        out = new PrintWriter(socket.getOutputStream(), true);
+        din = new DataInputStream(socket.getInputStream());
+        dos = new DataOutputStream(socket.getOutputStream());
     }
 }

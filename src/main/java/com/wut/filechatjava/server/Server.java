@@ -21,7 +21,14 @@ public class Server {
         startServer();
         
         // gets the database instance
-        database = Database.getInstance();
+        try{
+            database = Database.getInstance();
+            System.out.println("Successfully connected to the database!");
+        }catch(Exception e){
+            // database connection fail, can't run without database
+            System.out.println("Couldn't connect to the database");
+            return;
+        }
         
         // keeping database connection alive
         Timer timer = new Timer();
@@ -41,7 +48,7 @@ public class Server {
         }
     }
     
-    public static void startServer(){
+    private static void startServer(){
         
         try {
             serverSocket = new ServerSocket(port);

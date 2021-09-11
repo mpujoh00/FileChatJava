@@ -26,20 +26,12 @@ public class Database {
 
     private static Database database;
 
-    private Database(){
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-            connection = DriverManager.getConnection(url, user, password);
-            System.out.println("Successfully connected to the database!");
-
-        } catch (ClassNotFoundException ex) {
-            System.out.println("Couldn't connect to the database");
-        } catch (SQLException ex) {
-            System.out.println("Couldn't connect to the database");
-        }
+    private Database() throws ClassNotFoundException, SQLException{
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        connection = DriverManager.getConnection(url, user, password);
     }
 
-    public static Database getInstance(){
+    public static Database getInstance() throws ClassNotFoundException, SQLException{
         if(database == null) {
             database = new Database();
         }
