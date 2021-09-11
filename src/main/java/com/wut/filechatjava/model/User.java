@@ -1,5 +1,6 @@
+package com.wut.filechatjava.model;
 
-class User {
+public class User {
     
     private int id;
     private String username;

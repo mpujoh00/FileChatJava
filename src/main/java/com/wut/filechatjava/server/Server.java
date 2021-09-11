@@ -1,4 +1,6 @@
+package com.wut.filechatjava.server;
 
+import com.wut.filechatjava.database.Database;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -9,17 +11,17 @@ import java.util.logging.Logger;
 
 public class Server {
     
-    static ServerSocket serverSocket;
-    static Database database;
-    static int port = 2021;
+    private static ServerSocket serverSocket;
+    private static Database database;
+    private static int port = 2021;
     
-    public static void main(String args[]) throws IOException{
+    public static void main(String[] args) throws IOException{
         
         // starts the server
         startServer();
         
-        // connects the database 
-        connectDatabase();
+        // gets the database instance
+        database = Database.getInstance();
         
         // keeping database connection alive
         Timer timer = new Timer();
@@ -47,10 +49,5 @@ public class Server {
         } catch (IOException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
-    }
-    
-    public static void connectDatabase(){
-        
-        database = new Database();
     }
 }

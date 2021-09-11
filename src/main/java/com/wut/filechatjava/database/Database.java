@@ -1,4 +1,7 @@
+package com.wut.filechatjava.database;
 
+import com.wut.filechatjava.model.Files;
+import com.wut.filechatjava.model.User;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -20,25 +23,33 @@ public class Database {
     private final String password = "";
     private Connection connection; 
     private PreparedStatement statement;
-    
-    public Database(){
-        // creates connection to the database
+
+    private static Database database;
+
+    private Database(){
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             connection = DriverManager.getConnection(url, user, password);
             System.out.println("Successfully connected to the database!");
-            
+
         } catch (ClassNotFoundException ex) {
             System.out.println("Couldn't connect to the database");
         } catch (SQLException ex) {
             System.out.println("Couldn't connect to the database");
         }
     }
+
+    public static Database getInstance(){
+        if(database == null) {
+            database = new Database();
+        }
+        return database;
+    }
     
     public void uploadFile(int toId, int fromId, String filename){
         
         try {
-            statement = connection.prepareStatement("INSERT INTO Files (to_id, from_id, file, file_name) VALUES (?,?,?,?)");
+            statement = connection.prepareStatement("INSERT INTO model.Files (to_id, from_id, file, file_name) VALUES (?,?,?,?)");
             statement.setInt(1, toId);
             statement.setInt(2, fromId);
             File file = new File("./files/" + filename);
@@ -56,7 +67,7 @@ public class Database {
     public void deleteFile(int fileId){
         
         try {
-            statement = connection.prepareStatement("DELETE FROM Files WHERE id=?");
+            statement = connection.prepareStatement("DELETE FROM model.Files WHERE id=?");
             statement.setInt(1, fileId);
             statement.execute();
         } catch (SQLException ex) {
@@ -69,7 +80,7 @@ public class Database {
         ArrayList<Files> files = new ArrayList<Files>();
         try {
             
-            statement = connection.prepareStatement("SELECT * FROM Files WHERE to_id=?");
+            statement = connection.prepareStatement("SELECT * FROM model.Files WHERE to_id=?");
             statement.setInt(1, toUserId);
             ResultSet result = statement.executeQuery();
             
@@ -113,7 +124,7 @@ public class Database {
         }
     }
     
-    // returns User given username
+    // returns model.User given username
     public User getUser(String username){
         try {
             statement = connection.prepareStatement("SELECT * FROM Users WHERE username=?");
@@ -138,7 +149,7 @@ public class Database {
         }
     }
     
-    // returns User given username
+    // returns model.User given username
     public User getUser(int userId){
         try {
             statement = connection.prepareStatement("SELECT * FROM Users WHERE id=?");
@@ -163,7 +174,7 @@ public class Database {
         }
     }
     
-    // connects User (is available to true)
+    // connects model.User (is available to true)
     public void connectUser(String username){
         try {
             statement = connection.prepareStatement("UPDATE Users SET is_available=? WHERE username=?");
@@ -175,7 +186,7 @@ public class Database {
         }
     }
     
-    // disconnects User (is available to false)
+    // disconnects model.User (is available to false)
     public void disconnectUser(String username){
         try {
             statement = connection.prepareStatement("UPDATE Users SET is_available=? WHERE username=?");

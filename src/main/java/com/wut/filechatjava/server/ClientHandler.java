@@ -1,3 +1,8 @@
+package com.wut.filechatjava.server;
+
+import com.wut.filechatjava.database.Database;
+import com.wut.filechatjava.model.Files;
+import com.wut.filechatjava.model.User;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
