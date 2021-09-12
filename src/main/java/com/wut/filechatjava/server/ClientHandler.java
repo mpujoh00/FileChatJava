@@ -1,7 +1,6 @@
 package com.wut.filechatjava.server;
 
 import com.wut.filechatjava.database.Database;
-import com.wut.filechatjava.exception.ServerConnectionException;
 import com.wut.filechatjava.model.Files;
 import com.wut.filechatjava.model.User;
 import java.io.BufferedReader;
@@ -306,7 +305,6 @@ public class ClientHandler extends Thread{
                 readMessage();
                 System.out.println(" - File received by user");
             }
-            sendMessage("");
             for(Files file: files) this.database.deleteFile(file.getId());
         }
         
@@ -490,11 +488,16 @@ public class ClientHandler extends Thread{
     }
     
     private String readMessage() throws SocketException{
+        String message;
         try {
-            return in.readLine();
-        } catch (IOException ex) {
+            message = in.readLine();
+        } catch (Exception e){
             throw new SocketException();
         }
+        if(message == null){
+            throw new SocketException();
+        }
+        return message;
     }
     
     private void sendMessage(String message){

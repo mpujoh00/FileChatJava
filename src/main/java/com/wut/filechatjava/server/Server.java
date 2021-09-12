@@ -2,6 +2,7 @@ package com.wut.filechatjava.server;
 
 import com.wut.filechatjava.database.Database;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Timer;
@@ -51,7 +52,7 @@ public class Server {
     private static void startServer(){
         
         try {
-            serverSocket = new ServerSocket(port);
+            serverSocket = new ServerSocket(port, 50, InetAddress.getByName("192.168.1.37"));
             System.out.println("Server listening on port " + port);
         } catch (IOException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);

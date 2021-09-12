@@ -31,10 +31,10 @@ public class Client {
     private static String server;
 
     //PYTHON SERVER
-    private static final String PYTHON_HOST = "localhost";
-    private static final int PYTHON_PORT = 2022;
+    private static final String PYTHON_HOST = "192.168.56.101";
+    private static final int PYTHON_PORT = 2021;
     //JAVA SERVER
-    private static final String JAVA_HOST = "localhost";
+    private static final String JAVA_HOST = "192.168.1.37";
     private static final int JAVA_PORT = 2021;
 
 
@@ -56,6 +56,7 @@ public class Client {
         
         // gets what server it is
         server = readMessage();
+        System.out.println("Connected to " + server + " server");
 
         // indicates what client it is
         sendMessage("java");
@@ -71,8 +72,9 @@ public class Client {
         System.out.println("Waiting for messages");
         Scanner sc = new Scanner(System.in);
         String receivedMessage = readMessage();
+        boolean run = true;
         // reads messages from the server
-        while(receivedMessage != null){
+        while(run){
             try {
                 // send file to friend
                 if (receivedMessage.equals("What file do you want to send?")) {
@@ -87,6 +89,7 @@ public class Client {
                 } else if (receivedMessage.equals("Goodbye!")) {
                     System.out.println(" - " + receivedMessage);
                     closeConnection();
+                    run = false;
                     break;
                 // empty message
                 } else if (!receivedMessage.isBlank()) {
@@ -118,6 +121,7 @@ public class Client {
                     Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
                 }
                 server = readMessage();
+                System.out.println("Connected to " + server + " server");
                 sendMessage("java");
                 
                 // reads next message
@@ -226,11 +230,16 @@ public class Client {
     }
     
     private static String readMessage() throws ServerConnectionException {
+        String message;
         try {
-            return in.readLine();
+            message = in.readLine();
         } catch (Exception e){
             throw new ServerConnectionException("", e);
         }
+        if(message == null){
+            throw new ServerConnectionException("Message null", new Exception());
+        }
+        return message;
     }
     
     private static void sendMessage(String message){
