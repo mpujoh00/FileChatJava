@@ -41,7 +41,7 @@ public class Database {
     public void uploadFile(int toId, int fromId, String filename){
         
         try {
-            statement = connection.prepareStatement("INSERT INTO model.Files (to_id, from_id, file, file_name) VALUES (?,?,?,?)");
+            statement = connection.prepareStatement("INSERT INTO Files (to_id, from_id, file, file_name) VALUES (?,?,?,?)");
             statement.setInt(1, toId);
             statement.setInt(2, fromId);
             File file = new File("./files/" + filename);
@@ -59,7 +59,7 @@ public class Database {
     public void deleteFile(int fileId){
         
         try {
-            statement = connection.prepareStatement("DELETE FROM model.Files WHERE id=?");
+            statement = connection.prepareStatement("DELETE FROM Files WHERE id=?");
             statement.setInt(1, fileId);
             statement.execute();
         } catch (SQLException ex) {
@@ -72,7 +72,7 @@ public class Database {
         ArrayList<Files> files = new ArrayList<Files>();
         try {
             
-            statement = connection.prepareStatement("SELECT * FROM model.Files WHERE to_id=?");
+            statement = connection.prepareStatement("SELECT * FROM Files WHERE to_id=?");
             statement.setInt(1, toUserId);
             ResultSet result = statement.executeQuery();
             

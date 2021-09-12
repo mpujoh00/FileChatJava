@@ -437,11 +437,6 @@ public class ClientHandler extends Thread{
                 sendMessage("Incorrect password, try again\n");
                 System.out.println(" - Trying to login again");
             }
-            // user already connected
-            else if(user.isAvailable()){
-                sendMessage("That user is already connected, try again\n");
-                System.out.println(" - Trying to login again");
-            }
             // correct data
             else{
                 sendMessage("Correct data, logging in...\n");
